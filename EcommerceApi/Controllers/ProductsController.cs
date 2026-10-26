@@ -24,7 +24,7 @@ namespace EcommerceApi.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ProductDto>>> GetProducts()
         {
-            var products = await _context.products
+            var products = await _context.Products
                 .Include(p => p.Category)
                 .Select(p => new ProductDto
                 {
@@ -46,7 +46,7 @@ namespace EcommerceApi.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<ProductDto>> GetProduct(int id)
         {
-            var product = await _context.products
+            var product = await _context.Products
                 .Include(p => p.Category)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
@@ -65,6 +65,22 @@ namespace EcommerceApi.Controllers
             };
 
             return Ok(productDto);
+        }
+
+        // جلب منتجات ذات صلة (باستثناء المنتج الحالي)
+        [HttpGet("{id}/related")]
+        public async Task<IActionResult> GetRelatedProducts(int id)
+        {
+            var product = await _context.Products.FindAsync(id);
+            if (product == null) return NotFound("Product not found");
+
+            // جلب 4 منتجات أخرى
+            var relatedProducts = await _context.Products
+                .Where(p => p.Id != id)
+                .Take(4)
+                .ToListAsync();
+
+            return Ok(relatedProducts);
         }
 
         // Post: api/products
@@ -87,7 +103,7 @@ namespace EcommerceApi.Controllers
                 CategoryId = dto.CategoryId,
             };
 
-            _context.products.Add(product);
+            _context.Products.Add(product);
             await _context.SaveChangesAsync();
 
             return CreatedAtAction(nameof(GetProduct), new {id = product.Id}, dto);
@@ -99,11 +115,11 @@ namespace EcommerceApi.Controllers
         [Authorize(Roles = AppRoles.Admin)]
         public async Task<IActionResult> DeleteProduct(int id)
         {
-            var product = await _context.products.FindAsync(id);
+            var product = await _context.Products.FindAsync(id);
             if (product == null)
                 return NotFound();
 
-            _context.products.Remove(product);
+            _context.Products.Remove(product);
             await _context.SaveChangesAsync();
 
             return NoContent();

@@ -43,10 +43,11 @@ namespace EcommerceApi.Controllers
 
             if (!result.Succeeded)
             {
-                await _userManager.AddToRoleAsync(user, AppRoles.Customer);
                 var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-                return BadRequest(new AuthResponseDto { Message = errors});
+                return BadRequest(new AuthResponseDto { Message = errors });
             }
+
+            await _userManager.AddToRoleAsync(user, AppRoles.Customer);
 
             var token = await GenerateJwtToken(user);
 

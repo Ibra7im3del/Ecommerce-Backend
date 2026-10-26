@@ -19,26 +19,39 @@ namespace EcommerceApi.Controllers
             _context = context;
         }
 
+        public class OrderCreateDto
+        {
+            public Address? ShippingAddress { get; set; }
+            public List<CartItemDto>? Items { get; set; }
+        }
+
+        public class CartItemDto
+        {
+            public int Id { get; set; }
+            public string? ProductName { get; set; }
+            public string? PictureUrl { get; set; }
+            public decimal Price { get; set; }
+            public int Quantity { get; set; }
+        }
+
         [HttpPost]
-        public async Task<ActionResult<Order>> CreateOrder(Address shippingAddress)
+        public async Task<ActionResult<Order>> CreateOrder([FromBody] OrderCreateDto orderDto)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var userEmail = User.FindFirstValue(ClaimTypes.Email);
 
-            var cart = await _context.ShoppingCarts
-                .Include(c => c.items)
-                .FirstOrDefaultAsync(c => c.UserId == userId);
-
-            if (cart == null || !cart.items.Any())
-                return BadRequest("The cart is empty; an order cannot be created");
-
-            var orderItems = cart.items.Select(item => new OrderItem
+            if (orderDto.Items == null || !orderDto.Items.Any())
             {
-                ProductId = item.ProductId,
-                ProductName = item.ProductName,
-                PictureUrl = item.PictureUrl,
+                return BadRequest("The cart is empty; an order cannot be created");
+            }
+
+            var orderItems = orderDto.Items.Select(item => new OrderItem
+            {
+                ProductId = item.Id,
+                ProductName = item.ProductName ?? string.Empty,
+                PictureUrl = item.PictureUrl ?? string.Empty,
                 UnitPrice = item.Price,
-                Quantity = item.Quantity,
+                Quantity = item.Quantity
             }).ToList();
 
             var subtotal = orderItems.Sum(item => item.UnitPrice * item.Quantity);
@@ -46,15 +59,13 @@ namespace EcommerceApi.Controllers
             var order = new Order
             {
                 BuyerEmail = userEmail!,
-                ShipToAddress = shippingAddress,
+                ShipToAddress = orderDto.ShippingAddress ?? new Address(),
                 orderItems = orderItems,
-                Subtotal = subtotal
+                Subtotal = subtotal,
+                OrderDate = DateTime.UtcNow
             };
 
             _context.orders.Add(order);
-
-            _context.CartItems.RemoveRange(cart.items);
-
             await _context.SaveChangesAsync();
 
             return Ok(order);
@@ -73,5 +84,7 @@ namespace EcommerceApi.Controllers
 
             return Ok(orders);
         }
+
+
     }
 }

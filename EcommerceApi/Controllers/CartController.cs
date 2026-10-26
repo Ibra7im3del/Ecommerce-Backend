@@ -43,7 +43,7 @@ namespace EcommerceApi.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            var product = await _context.products.FindAsync(productId);
+            var product = await _context.Products.FindAsync(productId);
             if (product == null) return NotFound("The product does not exist");
 
             var cart = await _context.ShoppingCarts
