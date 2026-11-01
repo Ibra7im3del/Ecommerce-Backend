@@ -68,46 +68,50 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
-
-    var dbContext = services.GetRequiredService<ApplicationDbContext>();
-    dbContext.Database.Migrate();
-
-    var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
-    var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
-
-
-    if (!await roleManager.RoleExistsAsync(AppRoles.Admin))
-        await roleManager.CreateAsync(new IdentityRole(AppRoles.Admin));
-
-    if (!await roleManager.RoleExistsAsync(AppRoles.Customer))
-        await roleManager.CreateAsync(new IdentityRole(AppRoles.Customer));
-
-    var adminEmail = "admin@ecommerce.com";
-    var adminUser = await userManager.FindByEmailAsync(adminEmail);
-
-    if (adminUser == null)
+    try
     {
-        var newAdmin = new ApplicationUser
-        {
-            UserName = adminEmail,
-            Email = adminEmail,
-            FullName = "System Admin"
-        };
+        var dbContext = services.GetRequiredService<ApplicationDbContext>();
 
-        var result = await userManager.CreateAsync(newAdmin, "Admin@123456");
-        if (result.Succeeded)
+        var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+        var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+
+        if (!await roleManager.RoleExistsAsync(AppRoles.Admin))
+            await roleManager.CreateAsync(new IdentityRole(AppRoles.Admin));
+
+        if (!await roleManager.RoleExistsAsync(AppRoles.Customer))
+            await roleManager.CreateAsync(new IdentityRole(AppRoles.Customer));
+
+        var adminEmail = builder.Configuration["AdminSeed:Email"]!;
+        var adminPassword = builder.Configuration["AdminSeed:Password"]!;
+
+        var adminUser = await userManager.FindByEmailAsync(adminEmail);
+        if (adminUser == null)
         {
-            await userManager.AddToRoleAsync(newAdmin, AppRoles.Admin);
+            var newAdmin = new ApplicationUser
+            {
+                UserName = adminEmail,
+                Email = adminEmail,
+                FullName = "System Admin"
+            };
+            var result = await userManager.CreateAsync(newAdmin, adminPassword);
+            if (result.Succeeded)
+            {
+                await userManager.AddToRoleAsync(newAdmin, AppRoles.Admin);
+            }
         }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"An error occurred during migration/seeding: {ex.Message}");
     }
 }
 
 
-// Configure the HTTP request pipeline.
+app.UseSwagger();
+app.UseSwaggerUI();
+
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
     app.MapOpenApi();
 }
 app.UseRouting();
